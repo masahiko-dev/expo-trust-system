@@ -4,50 +4,47 @@ import { useState, useEffect } from "react";
 
 type Card = {
   id: number;
+  company: string;
+  department: string;
   name: string;
-  temp: string;
+  temperature: "Hot" | "Warm" | "Cold";
   interest: string;
   email: string;
   count: number;
   sendCount: number;
   expoDate: string;
-  lastContact: string;
+  lastContactedAt: string;
 };
 
 type Interaction = {
   id: number;
   contactId: number;
-  type: "mail" | "action" | "temp";
-  value?: string; // temp のとき "Hot"/"Warm"/"Cold" を入れる
+  type: "mail" | "action" | "temperature";
+  value?: string; // temperature のとき "Hot"/"Warm"/"Cold" を入れる
   date: string;
 };
 
+type ImportedCard = Partial<Card> & { email: string };
+
 export default function Home() {
 
-  const [cards, setCards] = useState([
-    {
-      id: 1,
-      name: "田中真樹",
-      temp: "Hot",
-      interest: "OCR×建設業",
-      email: "tanaka@example.com",
-      count: 1,
-      sendCount: 0,
-      expoDate: "2026-01-01",     // 展示会日（固定）
-      lastContact: "2026-01-10"   // 最終接触日（最初は展示会日）
-    },
-    {
-      id: 2,
-      name: "佐藤麻紀",
-      temp: "Warm",
-      interest: "DXサポート",
-      email: "sato@example.com",
-      count: 0,
-      sendCount: 0,
-      expoDate: "2026-02-10",
-      lastContact: "2026-02-10"
-    }
-  ]);
+  const [cards, setCards] = useState<Card[]>([]);
+
+  // const [cards, setCards] = useState<Card[]>([
+  //   {
+  //     id: 1,
+  //     company: "株式会社OCR建設",
+  //     department: "営業部",
+  //     name: "田中真樹",
+  //     temperature: "Hot",
+  //     interest: "OCR×建設業",
+  //     email: "tanaka@example.com",
+  //     count: 1,
+  //     sendCount: 0,
+  //     expoDate: "2026-01-01",
+  //     lastContactedAt: "2026-01-10",
+  //   },
+  // ]);
 
   const [importResult, setImportResult] = useState<{
     added: number;
@@ -114,43 +111,71 @@ export default function Home() {
 
       const header = lines[0].split(",");
 
-      const newCards = lines.slice(1).map((line, index) => {
-        const values = line.split(",");
+    const newCards: ImportedCard[] = lines.slice(1).map((line, index) => {
+      const values = line.split(",");
+      const today = new Date().toISOString().split("T")[0];
 
-        const today = new Date().toISOString().split("T")[0];
+      const temp = values[3];
 
-        return {
-          id: Date.now() + index,
-          name: values[0],
-          temp: values[1] || "Cold",
-          interest: values[2] || "",
-          email: values[3] || "",
-          expoDate: values[4] || today,
+      const safeTemp: Card["temperature"] =
+        temp === "Hot" || temp === "Warm" || temp === "Cold"
+          ? temp
+          : "Cold";
 
-          // 👇 追加
-          count: 0,
-          sendCount: 0,
-          lastContact: values[4] || today
-        };
-      });
+      return {
+        id: Date.now() + index + Math.floor(Math.random() * 100000),
+
+        company: values[0] || "",
+        department: values[1] || "",
+        name: values[2] || "",
+        temperature: safeTemp,
+        interest: values[4] || "",
+        email: values[5] || "",
+        expoDate: values[6] || today,
+
+        count: 0,
+        sendCount: 0,
+        lastContactedAt: values[6] || today,
+      };
+    });
 
       setCards(prev => {
-        const map = new Map(prev.map(card => [card.email, card]));
-
+        const map = new Map<string, Card>(
+          prev.map(card => [card.email, card])
+        );
+        
         let added = 0;
         let updated = 0;
 
-        newCards.forEach(card => {
-          const existing = map.get(card.email);
+      newCards.forEach((card) => {
+        const existing = map.get(card.email);
 
-          if (existing) {
-            updated++;
-            map.set(card.email, { ...existing, ...card });
-          } else {
-            added++;
-            map.set(card.email, card);
-          }
-        });
+        const normalized: Card = {
+          id: existing?.id ?? Date.now(),
+          company: card.company ?? existing?.company ?? "",
+          department: card.department ?? existing?.department ?? "",
+          name: card.name ?? existing?.name ?? "",
+          temperature: (card.temperature ?? existing?.temperature ?? "Cold") as Card["temperature"],
+          interest: card.interest ?? existing?.interest ?? "",
+          email: card.email,
+          count: card.count ?? existing?.count ?? 0,
+          sendCount: card.sendCount ?? existing?.sendCount ?? 0,
+          expoDate: card.expoDate ?? existing?.expoDate ?? "",
+          lastContactedAt:
+            card.lastContactedAt ??
+            existing?.lastContactedAt ??
+            card.expoDate ??
+            ""
+        };
+
+        if (existing) {
+          updated++;
+        } else {
+          added++;
+        }
+
+        map.set(card.email, normalized);
+      });
 
         setImportResult({ added, updated });
 
@@ -199,16 +224,16 @@ export default function Home() {
               ...card,
               count: card.count + 1,
               sendCount: card.sendCount + 1,
-              lastContact: today,
+              lastContactedAt: today,
             }
           : card
       )
     );
   };
 
-  const getColor = (temp: string) => {
-    if (temp === "Hot") return "red";
-    if (temp === "Warm") return "orange";
+  const getColor = (temperature: string) => {
+    if (temperature === "Hot") return "red";
+    if (temperature === "Warm") return "orange";
     return "blue";
   };
 
@@ -217,24 +242,25 @@ export default function Home() {
     if (!current) return;
 
     const next =
-      current.temp === "Hot" ? "Warm" :
-      current.temp === "Warm" ? "Cold" :
+      current.temperature === "Hot" ? "Warm" :
+      current.temperature === "Warm" ? "Cold" :
       "Hot";
 
     changeTemp(contactId, next);
   };
 
-  const changeTemp = (contactId: number, newTemp: string) => {
+  // const changeTemp = (contactId: number, newTemp: string) 
+  const changeTemp = (contactId: number, newTemp: Card["temperature"]) => {
     // ① いまの温度を cards から拾う（card はここでは使えないので cards.find）
     const current = cards.find(c => c.id === contactId);
     if (!current) return;
 
     // ② 同じ温度なら何もしない（ログも積まない）
-    if (current.temp === newTemp) return;
+    if (current.temperature === newTemp) return;
 
     // ③ cards を更新
     setCards(prev =>
-      prev.map(c => (c.id === contactId ? { ...c, temp: newTemp } : c))
+      prev.map(c => (c.id === contactId ? { ...c, temperature: newTemp } : c))
     );
 
     // ④ 履歴に1回だけ保存
@@ -243,27 +269,27 @@ export default function Home() {
       {
         id: Date.now(),
         contactId,
-        type: "temp",
+        type: "temperature",
         value: newTemp,
         date: new Date().toISOString(),
       },
     ]);
   };
 
-  const getDaysPassed = (lastContact: string) => {
+  const getDaysPassed = (lastContactedAt: string) => {
     const today = new Date();
-    const contact = new Date(lastContact);
+    const contact = new Date(lastContactedAt);
     const diff = today.getTime() - contact.getTime();
     return Math.floor(diff / (1000 * 60 * 60 * 24));
   };
 
-  const getScore = (temp: string, count: number, lastContact: string) => {
+  const getScore = (temperature: string, count: number, lastContactedAt: string) => {
     const tempScore =
-      temp === "Hot" ? 3 :
-      temp === "Warm" ? 2 : 1;
+      temperature === "Hot" ? 3 :
+      temperature === "Warm" ? 2 : 1;
 
     const baseScore = tempScore * count;
-    const days = getDaysPassed(lastContact);
+    const days = getDaysPassed(lastContactedAt);
 
     let decay = 0;
     if (days > 14) decay = 5;
@@ -273,9 +299,9 @@ export default function Home() {
     return Math.max(baseScore - decay, 0);
   };
 
-  const getRiskLevel = (temp: string, count: number, lastContact: string) => {
-    const days = getDaysPassed(lastContact);
-    const score = getScore(temp, count, lastContact);
+  const getRiskLevel = (temperature: string, count: number, lastContactedAt: string) => {
+    const days = getDaysPassed(lastContactedAt);
+    const score = getScore(temperature, count, lastContactedAt);
 
     if (days > 14 && count === 0) return "danger";
     if (days > 14 && score < 5) return "warning";
@@ -323,20 +349,20 @@ export default function Home() {
   const getSuggestedTemp = (card: Card) => {
     const last = getLastContact(card);
     const score = getScore(
-      card.temp,
+      card.temperature,
       getActionCount(card.id),
       last
     );
 
     // スコア高いのにCold/Warmなら上げ提案
-    if (score >= 8 && card.temp !== "Hot") return "Hot";
-    if (score >= 4 && card.temp === "Cold") return "Warm";
+    if (score >= 8 && card.temperature !== "Hot") return "Hot";
+    if (score >= 4 && card.temperature === "Cold") return "Warm";
 
     return null;
   };
 
   const generateMail = (card: any) => {
-    const risk = getRiskLevel(card.temp, card.count, card.lastContact);
+    const risk = getRiskLevel(card.temperature, card.count, card.lastContactedAt);
 
   if (risk === "danger") {
     return `
@@ -369,16 +395,16 @@ export default function Home() {
   const sortedCards = [...cards].sort((a, b) => {
 
     const lastA =
-      getLastContactFromHistory(a.id) ?? a.lastContact;
+      getLastContactFromHistory(a.id) ?? a.lastContactedAt;
 
     const lastB =
-      getLastContactFromHistory(b.id) ?? b.lastContact;
+      getLastContactFromHistory(b.id) ?? b.lastContactedAt;
 
     const countA = getCountFromHistory(a.id);
     const countB = getCountFromHistory(b.id);
 
     const riskPriority = (card: Card, last: string, count: number) => {
-      const risk = getRiskLevel(card.temp, count, last);
+      const risk = getRiskLevel(card.temperature, count, last);
       if (risk === "danger") return 3;
       if (risk === "warning") return 2;
       return 1;
@@ -390,8 +416,8 @@ export default function Home() {
 
     if (riskDiff !== 0) return riskDiff;
 
-    const scoreA = getScore(a.temp, countA, lastA);
-    const scoreB = getScore(b.temp, countB, lastB);
+    const scoreA = getScore(a.temperature, countA, lastA);
+    const scoreB = getScore(b.temperature, countB, lastB);
 
     return scoreB - scoreA;
   });
@@ -400,17 +426,17 @@ export default function Home() {
 
 
     const dangerCount = sortedCards.filter(card =>
-      getRiskLevel(card.temp, card.count, card.lastContact) === "danger"
+      getRiskLevel(card.temperature, card.count, card.lastContactedAt) === "danger"
     ).length;
 
     const warningCount = sortedCards.filter(card =>
-      getRiskLevel(card.temp, card.count, card.lastContact) === "warning"
+      getRiskLevel(card.temperature, card.count, card.lastContactedAt) === "warning"
     ).length;
 
 
   useEffect(() => {
     const dangerCard = sortedCards.find(card =>
-      getRiskLevel(card.temp, card.count, card.lastContact) === "danger"
+      getRiskLevel(card.temperature, card.count, card.lastContactedAt) === "danger"
     );
 
     if (dangerCard) {
@@ -484,13 +510,14 @@ export default function Home() {
           const suggested = getSuggestedTemp(card);
 
           const last =
-            getLastContactFromHistory(card.id) ?? card.lastContact;
+            getLastContactFromHistory(card.id) ?? card.lastContactedAt;
 
-          const risk = getRiskLevel(card.temp, card.count, card.lastContact);
+          const risk = getRiskLevel(card.temperature, card.count, card.lastContactedAt);
 
           return (
 
-            <div key={card.id} 
+            // <div key={card.id} 
+            <div key={card.email}
             style={{
               border: "1px solid #ccc",
               padding: "10px",
@@ -500,7 +527,7 @@ export default function Home() {
                 ? "red"
                 : risk === "warning"
                 ? "orange"
-                : getColor(card.temp)
+                : getColor(card.temperature)
               }`
           }}>
 
@@ -508,8 +535,9 @@ export default function Home() {
             <p>
               温度：
               <select
-                value={card.temp}
-                onChange={(e) => changeTemp(card.id, e.target.value)}
+                value={card.temperature}
+                // onChange={(e) => changeTemp(card.id, e.target.value)}
+                onChange={(e) => changeTemp(card.id, e.target.value as Card["temperature"])}
                 style={{ marginLeft: 8 }}
               >
                 <option value="Hot">Hot</option>
@@ -550,7 +578,7 @@ export default function Home() {
                   setCards(prev =>
                     prev.map(c =>
                       c.id === card.id
-                        ? { ...c, temp: suggested }
+                        ? { ...c, temperature: suggested }
                         : c
                     )
                   )
@@ -565,7 +593,7 @@ export default function Home() {
           <p>接触回数：{getCountFromHistory(card.id)}</p>
           <p>送信回数：{getSendCount(card.id)}</p>
           <p>経過日数：{getDaysPassed(last)}日</p>
-          <p>信頼スコア：{getScore(card.temp, getActionCount(card.id), last)}</p>
+          <p>信頼スコア：{getScore(card.temperature, getActionCount(card.id), last)}</p>
             {risk === "danger" && (
               <p style={{ color: "red", fontWeight: "bold" }}>
                 ⚠ 危険：未フォロー</p>
@@ -648,7 +676,7 @@ export default function Home() {
                     .map(i => (
                       <div key={i.id} style={{ display: "flex", gap: "8px" }}>
                         <span>
-                          {i.type === "temp"
+                          {i.type === "temperature"
                             ? `温度変更 → ${i.value}`
                             : i.type
                           }
