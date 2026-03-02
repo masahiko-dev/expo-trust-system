@@ -123,8 +123,8 @@ export default function Home() {
           : "Cold";
 
       return {
-        id: Date.now() + index + Math.floor(Math.random() * 100000),
-
+        // id: Date.now() + index + Math.floor(Math.random() * 100000),
+        id: Number(`${Date.now()}${Math.floor(Math.random() * 10000)}`),
         company: values[0] || "",
         department: values[1] || "",
         name: values[2] || "",
@@ -151,7 +151,9 @@ export default function Home() {
         const existing = map.get(card.email);
 
         const normalized: Card = {
-          id: existing?.id ?? Date.now(),
+          id: existing ? existing.id : Date.now() * 1000 + Math.floor(Math.random() * 1000),
+          // id: Date.now() * 1000 + index,
+          // id: existing?.id ?? Date.now(),
           company: card.company ?? existing?.company ?? "",
           department: card.department ?? existing?.department ?? "",
           name: card.name ?? existing?.name ?? "",
@@ -532,6 +534,7 @@ export default function Home() {
           }}>
 
           <h3>{card.name}</h3>
+          <div>id: {card.id}</div>
             <p>
               温度：
               <select
