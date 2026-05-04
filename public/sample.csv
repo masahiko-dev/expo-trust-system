@@ -1,0 +1,4 @@
+﻿company_name,department_name,position,contact_name,email,conversation_note,pain_point,temperature,event_name,event_type
+株式会社アルファ,営業部,部長,山田太郎,yamada@alpha.co.jp,展示会でAI導入に興味ありと話していた,社内にエンジニアがいない,B,Japan IT Week,expo
+株式会社ベータ,マーケ部,担当者,佐藤花子,sato@beta.co.jp,営業効率化に課題があると発言,リード管理が属人化,C,春キャンペーン,campaign
+株式会社ガンマ,DX推進室,責任者,高橋健,takahashi@gamma.co.jp,既存ツールが使いにくいと不満,CRMが現場に浸透していない,A,新製品発表会,launch

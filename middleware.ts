@@ -1,0 +1,53 @@
+import { createServerClient } from "@supabase/ssr"
+import { NextResponse } from "next/server"
+import type { NextRequest } from "next/server"
+
+export async function middleware(req: NextRequest) {
+    
+  const res = NextResponse.next()
+  // 🔥 callback通す
+  if (req.nextUrl.searchParams.get("code")) {
+    return res
+  }
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return req.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            res.cookies.set(name, value, options)
+          })
+        }
+      }
+    }
+  )
+
+  const {
+    data: { user }
+  } = await supabase.auth.getUser()
+
+  // 🔥 ログインページは通す
+  if (req.nextUrl.pathname.startsWith("/login")) {
+    return res
+  }
+
+  // 🔥 未ログインならリダイレクト
+  if (!user) {
+    const redirectUrl = req.nextUrl.clone()
+    redirectUrl.pathname = "/login"
+    return NextResponse.redirect(redirectUrl)
+  }
+
+  return res
+}
+
+export const config = {
+  matcher: [
+    "/((?!_next|favicon.ico).*)",
+  ],
+}
