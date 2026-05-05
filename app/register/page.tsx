@@ -3,17 +3,24 @@
 export const dynamic = "force-dynamic"
 
 import { useEffect, useState } from "react"
-import { useSearchParams, useRouter } from "next/navigation"
+import { useRouter } from "next/navigation"
 
 export default function RegisterPage() {
-  const params = useSearchParams()
   const router = useRouter()
-  const token = params.get("token")
 
+  const [token, setToken] = useState<string | null>(null)
   const [valid, setValid] = useState(false)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
 
+  // 🔥 tokenをここで取得（これが重要）
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const t = params.get("token")
+    setToken(t)
+  }, [])
+
+  // 🔥 token取得後に検証
   useEffect(() => {
     if (!token) return
 
