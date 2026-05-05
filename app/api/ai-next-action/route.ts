@@ -28,7 +28,7 @@ export async function POST(req: Request) {
       }
     )
 
-    // 認証
+    // 🔥 認証
     const { data: authUser } = await supabase.auth.getUser()
     const userId = authUser?.user?.id
 
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
       return Response.json({ error: "未認証" }, { status: 401 })
     }
 
-    // account_id
+    // 🔥 account_id取得
     const { data: userRow } = await supabase
       .from("users")
       .select("account_id")
@@ -48,6 +48,54 @@ export async function POST(req: Request) {
     if (!accountId) {
       return Response.json({ error: "account_idなし" }, { status: 500 })
     }
+
+    // 🔥 account取得
+    const { data: account } = await supabase
+      .from("accounts")
+      .select("*")
+      .eq("id", accountId)
+      .single()
+
+    if (!account) {
+      return Response.json({ error: "accountなし" }, { status: 400 })
+    }
+
+    // =========================================
+    // 🔥 ① 上限チェック（軽いチェック）
+    // =========================================
+    if (account.plan_type === "trial") {
+      if ((account.trial_used ?? 0) >= (account.trial_limit ?? 3)) {
+        return Response.json(
+          { error: "上限に達しています" },
+          { status: 403 }
+        )
+      }
+    }
+
+    // =========================================
+    // 🔥 ② カウント更新（ロック付き）←重要
+    // =========================================
+    if (account.plan_type === "trial") {
+      const { data, error } = await supabase
+        .from("accounts")
+        .update({
+          trial_used: (account.trial_used ?? 0) + 1
+        })
+        .eq("id", accountId)
+        .lt("trial_used", account.trial_limit)
+        .select()
+
+      if (error || !data || data.length === 0) {
+        return Response.json(
+          { error: "上限に達しています" },
+          { status: 403 }
+        )
+      }
+    }
+
+    // =========================================
+    // 🔥 ③ ここで初めてAI実行
+    // =========================================
 
     // lead取得
     const { data: lead } = await supabase
@@ -61,14 +109,12 @@ export async function POST(req: Request) {
       return Response.json({ error: "lead not found" }, { status: 404 })
     }
 
-    // contacts取得
     const { data: contacts } = await supabase
       .from("contacts")
       .select("name, email, conversation_note, pain_point")
       .eq("lead_id", leadId)
       .eq("account_id", accountId)
 
-    // follow_tasks取得
     const { data: tasks } = await supabase
       .from("follow_tasks")
       .select("task_type, due_date, is_sent, notes")
@@ -76,7 +122,6 @@ export async function POST(req: Request) {
       .eq("account_id", accountId)
       .order("due_date", { ascending: true })
 
-    // mail_logs取得
     const { data: mails } = await supabase
       .from("mail_logs")
       .select("task_type, mail_text, sent_at")

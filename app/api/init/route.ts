@@ -8,12 +8,16 @@ export async function POST(req: Request) {
       return Response.json({ error: "missing" }, { status: 400 })
     }
 
-    // 🔥 既存チェック
-    const { data: existing } = await supabase
+    // 🔥 既存チェック（1回だけ！）
+    const { data: existing, error: existingError } = await supabase
       .from("users")
       .select("account_id")
       .eq("id", userId)
       .maybeSingle()
+
+    if (existingError) {
+      return Response.json({ error: existingError.message }, { status: 500 })
+    }
 
     if (existing) {
       return Response.json({ ok: true, account_id: existing.account_id })
@@ -23,8 +27,11 @@ export async function POST(req: Request) {
     const { data: account, error: accountError } = await supabase
       .from("accounts")
       .insert({
-        plan: "free",
-        is_trial: true
+        name: email,
+        plan_type: "trial",
+        is_active: false,
+        trial_limit: 3,
+        trial_used: 0
       })
       .select()
       .single()
@@ -43,7 +50,7 @@ export async function POST(req: Request) {
       })
 
     if (userError) {
-      // 🔥 rollback（超重要）
+      // 🔥 rollback
       await supabase.from("accounts").delete().eq("id", account.id)
 
       return Response.json({ error: "user作成失敗" }, { status: 500 })
