@@ -20,7 +20,6 @@ export async function POST(req: Request) {
     }
   )
 
-  // 🔐 ログインユーザー取得
   const { data } = await supabase.auth.getUser()
   const user = data.user
 
@@ -28,7 +27,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  // 🔎 account取得
   const { data: userRow } = await supabase
     .from("users")
     .select("account_id")
@@ -37,8 +35,11 @@ export async function POST(req: Request) {
 
   const accountId = userRow?.account_id
 
-  // 🧠 accounts更新
-  await supabase
+  if (!accountId) {
+    return NextResponse.json({ error: "No account" }, { status: 400 })
+  }
+
+  const { error } = await supabase
     .from("accounts")
     .update({
       target,
@@ -49,6 +50,10 @@ export async function POST(req: Request) {
       is_active: true
     })
     .eq("id", accountId)
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
 
   return NextResponse.json({ success: true })
 }

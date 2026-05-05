@@ -14,26 +14,39 @@ export default function OnboardingPage() {
   const [reason2, setReason2] = useState("")
   const [reason3, setReason3] = useState("")
   const [achievements, setAchievements] = useState("")
+  const [loading, setLoading] = useState(false)
 
-  const handleSubmit = async () => {
+const handleSubmit = async () => {
+
+    // 🔥 ここ追加（最初に）
+    if (!target || !strength1 || !reason1) {
+        alert("最低限入力してください")
+        return
+    }
+
+    setLoading(true)
+
     const res = await fetch("/api/onboarding", {
-      method: "POST",
-      body: JSON.stringify({
+        method: "POST",
+        body: JSON.stringify({
         target,
         strengths: [strength1, strength2, strength3],
         reasons: [reason1, reason2, reason3],
         achievements
-      })
+        })
     })
 
     const data = await res.json()
 
+    setLoading(false)
+
     if (data.success) {
-      router.push("/dashboard")
+        router.push("/dashboard")
     } else {
-      alert("エラー")
+        alert("エラー")
     }
-  }
+    }
+
 
   return (
     <div style={{ padding: 40 }}>
@@ -58,9 +71,9 @@ export default function OnboardingPage() {
 
       <br /><br />
 
-      <button onClick={handleSubmit}>
-        設定を完了する
-      </button>
+    <button onClick={handleSubmit} disabled={loading}>
+    {loading ? "設定中..." : "設定を完了する"}
+    </button>
     </div>
   )
 }
