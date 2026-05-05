@@ -9,7 +9,7 @@ const supabase = createClient(
 )
 
 // 🔐 管理者メール
-const ADMIN_EMAIL = "your@email.com"
+const ADMIN_EMAIL = "masahiko.yamada.cp@gmail.com"
 
 export default function AdminPage() {
   const [accountId, setAccountId] = useState("")
