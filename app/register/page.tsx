@@ -1,7 +1,7 @@
 "use client"
 
+import { Suspense, useEffect, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
 import { createBrowserClient } from "@supabase/ssr"
 
 const supabase = createBrowserClient(
@@ -9,7 +9,10 @@ const supabase = createBrowserClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-export default function RegisterPage() {
+// =========================
+// 実処理
+// =========================
+function RegisterContent() {
   const params = useSearchParams()
   const router = useRouter()
 
@@ -20,24 +23,24 @@ export default function RegisterPage() {
   const [sent, setSent] = useState(false)
 
   // 🔒 tokenなしは即リジェクト
-    useEffect(() => {
+  useEffect(() => {
     if (!token) {
-        router.push("/")
-        return
+      router.push("/")
+      return
     }
 
-    // 🔥 tokenの有効性チェック
+    // 🔥 token有効性確認
     fetch(`/api/invite/verify?token=${token}`)
-        .then(res => res.json())
-        .then(data => {
+      .then((res) => res.json())
+      .then((data) => {
         if (!data.success) {
-            alert("無効なリンクです")
-            router.push("/")
+          alert("無効なリンクです")
+          router.push("/")
         }
-        })
-    }, [token, router])
+      })
+  }, [token, router])
 
-  // 🔐 MagicLink送信（登録用）
+  // 🔐 MagicLink送信
   const handleRegister = async () => {
     if (!email) {
       alert("メールアドレスを入力してください")
@@ -49,8 +52,9 @@ export default function RegisterPage() {
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback?token=${token}`
-      }
+        emailRedirectTo:
+          `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback?token=${token}`,
+      },
     })
 
     if (error) {
@@ -72,13 +76,41 @@ export default function RegisterPage() {
         placeholder="メールアドレス"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
+        style={{
+          padding: 12,
+          width: 300,
+          marginBottom: 12,
+          display: "block",
+        }}
       />
 
-      <button onClick={handleRegister} disabled={loading}>
+      <button
+        onClick={handleRegister}
+        disabled={loading}
+        style={{
+          padding: "12px 20px",
+          cursor: "pointer",
+        }}
+      >
         {loading ? "送信中..." : "登録リンクを送る"}
       </button>
 
-      {sent && <p>メールを送信しました</p>}
+      {sent && (
+        <p style={{ marginTop: 20 }}>
+          メールを送信しました
+        </p>
+      )}
     </div>
+  )
+}
+
+// =========================
+// Suspense wrapper
+// =========================
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <RegisterContent />
+    </Suspense>
   )
 }
