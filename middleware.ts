@@ -3,7 +3,7 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
 export async function middleware(req: NextRequest) {
-    
+
   const res = NextResponse.next()
   // 🔥 callback通す
   if (req.nextUrl.searchParams.get("code")) {
@@ -31,8 +31,12 @@ export async function middleware(req: NextRequest) {
     data: { user }
   } = await supabase.auth.getUser()
 
-  // 🔥 ログインページは通す
-  if (req.nextUrl.pathname.startsWith("/login")) {
+  // 🔓 認証不要ページ
+  if (
+    req.nextUrl.pathname.startsWith("/login") ||
+    req.nextUrl.pathname.startsWith("/register") ||
+    req.nextUrl.pathname.startsWith("/auth")
+  ) {
     return res
   }
 

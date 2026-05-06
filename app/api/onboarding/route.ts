@@ -27,32 +27,65 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const { data: userRow } = await supabase
-    .from("users")
-    .select("account_id")
-    .eq("id", user.id)
-    .single()
+  const cleanStrengths = Array.isArray(strengths)
+  ? strengths.filter(Boolean)
+  : [strengths]
 
-  const accountId = userRow?.account_id
+    const cleanReasons = Array.isArray(reasons)
+    ? reasons.filter(Boolean)
+    : [reasons]
 
-  if (!accountId) {
-    return NextResponse.json({ error: "No account" }, { status: 400 })
-  }
+    const cleanAchievements = Array.isArray(achievements)
+    ? achievements.filter(Boolean)
+    : [achievements]
 
-  const { error } = await supabase
+
+  // ① account作成
+  const { data: account, error: accountError } = await supabase
     .from("accounts")
-    .update({
-      target,
-      strengths,
-      reasons,
-      achievements,
-      onboarding_completed: true,
+    .insert({
+      plan_type: "trial",
       is_active: true
     })
-    .eq("id", accountId)
+    .select()
+    .single()
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  console.log("accountError:", accountError)
+  console.log("account:", account)
+
+  if (accountError || !account) {
+    return NextResponse.json({ error: accountError?.message || "account作成失敗" }, { status: 500 })
+  }
+
+  // ② profile作成
+  const { error: profileError } = await supabase
+    .from("account_profiles")
+    .insert({
+        account_id: account.id,
+        target,
+        strengths: cleanStrengths,
+        reasons: cleanReasons,
+        achievements: cleanAchievements
+    })
+
+  console.log("profileError:", profileError)
+
+  if (profileError) {
+    return NextResponse.json({ error: profileError.message }, { status: 500 })
+  }
+
+  // ③ user紐付け（← 外に出す）
+    const { error: userError } = await supabase
+  .from("users")
+  .update({
+    account_id: account.id
+  })
+  .eq("id", user.id)
+
+  console.log("userError:", userError)
+  
+  if (userError) {
+    return NextResponse.json({ error: userError.message }, { status: 500 })
   }
 
   return NextResponse.json({ success: true })

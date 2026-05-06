@@ -1,19 +1,12 @@
 import { NextResponse } from "next/server"
-import { createInviteToken } from "@/lib/createInviteToken"
+import { randomUUID } from "crypto"
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 
-// 🔐 管理者メール
+// 🔐 管理者メール（残す）
 const ADMIN_EMAIL = "masahiko.yamada.cp@gmail.com"
 
-// 🔐 仮シークレット
-const ADMIN_SECRET = "my-secret-key"
-
-export async function POST(req: Request) {
-  const body = await req.json()
-  const { secret, accountId, email } = body
-
-  // 🔥 Supabase初期化（これが抜けてた）
+export async function POST() {
   const cookieStore = await cookies()
 
   const supabase = createServerClient(
@@ -28,24 +21,30 @@ export async function POST(req: Request) {
     }
   )
 
-  // 🔐 ユーザー取得
+  // 🔐 ログインユーザー取得
   const { data } = await supabase.auth.getUser()
   const user = data.user
 
-  // 🔐 メール制限
+  // 🔐 管理者チェック
   if (!user || user.email !== ADMIN_EMAIL) {
-    return NextResponse.json({ error: "Unauthorized (email)" }, { status: 401 })
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  // 🔐 シークレットチェック
-  if (secret !== ADMIN_SECRET) {
-    return NextResponse.json({ error: "Unauthorized (secret)" }, { status: 401 })
-  }
+  // 🔥 token生成
+  const token = randomUUID()
 
-  // 🔥 トークン発行
-  const token = await createInviteToken(accountId, email)
-
-  return NextResponse.json({
-    url: `https://expofollow.com/register?token=${token}`,
+  // 🔥 DB保存
+  const { error } = await supabase.from("invite_tokens").insert({
+    token,
+    is_used: false
   })
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  // 🔗 URL生成
+  const url = `${process.env.NEXT_PUBLIC_SITE_URL}/register?token=${token}`
+
+  return NextResponse.json({ url })
 }

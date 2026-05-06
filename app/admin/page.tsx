@@ -1,9 +1,9 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { createClient } from "@supabase/supabase-js"
+import { createBrowserClient } from "@supabase/ssr"
 
-const supabase = createClient(
+const supabase = createBrowserClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
@@ -12,17 +12,17 @@ const supabase = createClient(
 const ADMIN_EMAIL = "masahiko.yamada.cp@gmail.com"
 
 export default function AdminPage() {
-  const [accountId, setAccountId] = useState("")
   const [url, setUrl] = useState("")
+  const [loading, setLoading] = useState(false)
   const [allowed, setAllowed] = useState(false)
 
+  // 🔐 管理者チェック
   useEffect(() => {
     const checkUser = async () => {
       const { data } = await supabase.auth.getUser()
       const user = data.user
 
       if (!user || user.email !== ADMIN_EMAIL) {
-        alert("アクセス権限がありません")
         window.location.href = "/"
         return
       }
@@ -33,18 +33,23 @@ export default function AdminPage() {
     checkUser()
   }, [])
 
+  // 🔥 招待リンク発行
   const createInvite = async () => {
+    setLoading(true)
+
     const res = await fetch("/api/admin/create-invite", {
-      method: "POST",
-      body: JSON.stringify({
-        secret: "my-secret-key",
-        accountId,
-        email: null,
-      }),
+      method: "POST"
     })
 
     const data = await res.json()
-    setUrl(data.url)
+
+    if (data.url) {
+      setUrl(data.url)
+    } else {
+      alert("エラー：" + data.error)
+    }
+
+    setLoading(false)
   }
 
   if (!allowed) return <div>Checking...</div>
@@ -53,18 +58,18 @@ export default function AdminPage() {
     <div style={{ padding: 40 }}>
       <h1>招待リンク発行</h1>
 
-      <input
-        placeholder="accountId"
-        value={accountId}
-        onChange={(e) => setAccountId(e.target.value)}
-      />
-
-      <button onClick={createInvite}>発行</button>
+      <button onClick={createInvite} disabled={loading}>
+        {loading ? "作成中..." : "招待リンク作成"}
+      </button>
 
       {url && (
-        <div>
-          <p>発行URL</p>
-          <textarea value={url} readOnly style={{ width: 400 }} />
+        <div style={{ marginTop: 20 }}>
+          <p>このURLをユーザーに送ってください</p>
+          <textarea
+            value={url}
+            readOnly
+            style={{ width: 400, height: 80 }}
+          />
         </div>
       )}
     </div>

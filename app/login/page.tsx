@@ -1,53 +1,63 @@
 "use client"
 
+import { useSearchParams } from "next/navigation"
 import { useState } from "react"
-import { supabase } from "@/lib/supabase" // 🔥 ここに変更
+import { createBrowserClient } from "@supabase/ssr"
+
+const supabase = createBrowserClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("")
-  const [sent, setSent] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const params = useSearchParams()
+  const token = params.get("token")
 
-  const handleLogin = async () => {
+  const [email, setEmail] = useState("")
+
+  const sendMagicLink = async () => {
     if (!email) {
       alert("メールアドレスを入力してください")
       return
     }
 
-    setLoading(true)
-
-    const { error } = await supabase.auth.signInWithOtp({
+    await supabase.auth.signInWithOtp({
       email,
       options: {
-        // emailRedirectTo: "http://localhost:3000/companies"
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/companies`
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`
       }
     })
 
-    if (!error) {
-      setSent(true)
-    } else {
-      alert(error.message)
-    }
-
-    setLoading(false)
+    alert("ログインリンクを送信しました")
   }
 
+  // =========================
+  // 🧑‍💼 ログイン画面（既存ユーザー）
+  // =========================
+  if (!token) {
+    return (
+      <div style={{ padding: 40 }}>
+        <h1>ログイン</h1>
+
+        <input
+          placeholder="メールアドレス"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+
+        <button onClick={sendMagicLink}>
+          ログインリンクを送る
+        </button>
+      </div>
+    )
+  }
+
+  // =========================
+  // 👤 tokenあり（今回は使わない）
+  // =========================
   return (
     <div style={{ padding: 40 }}>
-      <h1>ログイン</h1>
-
-      <input
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder="メールアドレス"
-      />
-
-      <button onClick={handleLogin} disabled={loading}>
-        {loading ? "送信中..." : "ログインリンクを送信"}
-      </button>
-
-      {sent && <p>メール送信しました</p>}
+      <h1>このページは使用しません</h1>
     </div>
   )
 }

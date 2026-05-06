@@ -41,9 +41,10 @@ const handleSubmit = async () => {
     setLoading(false)
 
     if (data.success) {
-        router.push("/dashboard")
+    router.refresh()
+    router.replace("/companies")
     } else {
-        alert("エラー")
+    alert("エラー")
     }
     }
 

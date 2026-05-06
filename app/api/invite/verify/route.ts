@@ -7,7 +7,7 @@ export async function GET(req: Request) {
   const token = searchParams.get("token")
 
   if (!token) {
-    return NextResponse.json({ error: "No token" }, { status: 400 })
+    return NextResponse.json({ success: false })
   }
 
   const cookieStore = await cookies()
@@ -17,30 +17,22 @@ export async function GET(req: Request) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get: (name) => cookieStore.get(name)?.value,
+        get: () => undefined,
         set: () => {},
         remove: () => {},
       },
     }
   )
 
+  // 🔥 tokenチェックだけ
   const { data } = await supabase
     .from("invite_tokens")
-    .select("*")
+    .select("token")
     .eq("token", token)
-    .single()
+    .eq("is_used", false)
+    .maybeSingle()
 
-  if (!data) {
-    return NextResponse.json({ error: "Invalid token" }, { status: 401 })
-  }
-
-  if (data.is_used) {
-    return NextResponse.json({ error: "Already used" }, { status: 401 })
-  }
-
-  if (data.expires_at && new Date(data.expires_at) < new Date()) {
-    return NextResponse.json({ error: "Expired" }, { status: 401 })
-  }
-
-  return NextResponse.json({ success: true, invite: data })
+  return NextResponse.json({
+    success: !!data
+  })
 }
